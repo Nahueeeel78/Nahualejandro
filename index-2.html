@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<meta name="theme-color" content="#0c111a">
+<meta name="description" content="Inventario, notas y recordatorios para el área de computación e informática de la escuela.">
+<title>Inventario TI</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/favicon-32.png" sizes="32x32">
+<link rel="icon" href="icons/favicon-16.png" sizes="16x16">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<style>
+  :root{
+    --bg:#0c111a;
+    --surface:#161d2b;
+    --surface-2:#1e2738;
+    --surface-3:#26314548;
+    --line:#2a3448;
+    --steel:#8fa5c0;
+    --steel-dim:#5c7089;
+    --cyan:#4fd1c5;
+    --good:#4ade80;
+    --repair:#fbbf24;
+    --down:#f87171;
+    --text:#e8edf5;
+    --muted:#8996ab;
+    --font-ui: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --font-mono: ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:var(--font-ui);
+    padding-top:env(safe-area-inset-top);
+    overscroll-behavior-y:none;
+  }
+  #app{max-width:640px; margin:0 auto; min-height:100vh; display:flex; flex-direction:column;}
+
+  /* HEADER */
+  header{
+    position:sticky; top:0; z-index:20;
+    display:flex; align-items:center; gap:12px;
+    padding:14px 16px 10px;
+    background:linear-gradient(180deg, var(--bg) 70%, transparent);
+  }
+  header img.logo{
+    width:38px; height:38px; border-radius:50%;
+    border:2px solid var(--steel-dim);
+    object-fit:cover; flex-shrink:0;
+  }
+  header .titles{flex:1; min-width:0;}
+  header h1{font-size:17px; margin:0; font-weight:700; letter-spacing:.2px;}
+  header .sub{font-size:12px; color:var(--muted); margin-top:1px;}
+  header button.icon-btn{
+    background:var(--surface); border:1px solid var(--line); color:var(--steel);
+    width:38px; height:38px; border-radius:12px; display:flex; align-items:center; justify-content:center;
+    flex-shrink:0;
+  }
+
+  /* SEARCH / FILTERS */
+  .toolbar{padding:0 16px 8px; display:flex; flex-direction:column; gap:8px;}
+  .search{
+    display:flex; align-items:center; gap:8px;
+    background:var(--surface); border:1px solid var(--line); border-radius:12px;
+    padding:9px 12px;
+  }
+  .search input{
+    background:transparent; border:none; outline:none; color:var(--text);
+    font-family:var(--font-ui); font-size:14px; flex:1; min-width:0;
+  }
+  .search input::placeholder{color:var(--muted);}
+  .chips{display:flex; gap:8px; overflow-x:auto; padding-bottom:2px; scrollbar-width:none;}
+  .chips::-webkit-scrollbar{display:none;}
+  .chip{
+    flex-shrink:0; padding:7px 13px; border-radius:99px; font-size:12.5px; font-weight:600;
+    background:var(--surface); border:1px solid var(--line); color:var(--muted);
+    white-space:nowrap;
+  }
+  .chip.active{background:var(--steel); color:#0c111a; border-color:var(--steel);}
+
+  /* MAIN */
+  main{flex:1; padding:4px 16px 100px; overflow-y:auto;}
+  .section{display:none;}
+  .section.active{display:block; animation:fade .18s ease;}
+  @keyframes fade{from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:translateY(0);}}
+
+  .group-label{
+    font-size:11.5px; font-weight:700; letter-spacing:.08em; color:var(--muted);
+    text-transform:uppercase; margin:18px 2px 8px;
+    display:flex; align-items:center; gap:7px;
+  }
+  .group-label:first-child{margin-top:6px;}
+  .group-label .cat-icon{
+    display:flex; color:var(--steel); flex-shrink:0;
+  }
+  .group-label .cat-icon svg{width:15px; height:15px;}
+
+  .card{
+    background:var(--surface); border:1px solid var(--line); border-radius:14px;
+    padding:12px 12px; margin-bottom:9px; display:flex; gap:12px; align-items:flex-start;
+  }
+  .ring{
+    width:44px; height:44px; border-radius:50%; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    font-family:var(--font-mono); font-weight:700; font-size:13px;
+    border:3px solid var(--line); color:var(--text); background:var(--surface-2);
+  }
+  .ring.good{border-color:var(--good); color:var(--good);}
+  .ring.repair{border-color:var(--repair); color:var(--repair);}
+  .ring.down{border-color:var(--down); color:var(--down);}
+
+  .card .body{flex:1; min-width:0;}
+  .card .row1{display:flex; justify-content:space-between; align-items:baseline; gap:8px;}
+  .card .marca{font-weight:700; font-size:15px;}
+  .card .numero{font-family:var(--font-mono); color:var(--steel); font-size:13px;}
+  .card .meta{font-size:12.5px; color:var(--muted); margin-top:2px;}
+  .card .nota-txt{font-size:13px; color:var(--text); margin-top:6px; line-height:1.4; white-space:pre-wrap;}
+  .card .tags{display:flex; gap:6px; margin-top:8px; flex-wrap:wrap;}
+  .tag{font-size:11px; font-weight:700; padding:3px 9px; border-radius:99px; text-transform:uppercase; letter-spacing:.03em;}
+  .tag.falla{background:#3a1f22; color:var(--down);}
+  .tag.reparar{background:#3a3018; color:var(--repair);}
+  .tag.repuesto{background:#182c3a; color:var(--cyan);}
+  .tag.general{background:var(--surface-2); color:var(--muted);}
+  .card .thumb{
+    width:100%; max-height:160px; object-fit:cover; border-radius:10px; margin-top:8px; display:block;
+    border:1px solid var(--line);
+  }
+  .card .actions{display:flex; gap:6px; flex-shrink:0;}
+  .card .actions button{
+    width:30px; height:30px; border-radius:9px; border:1px solid var(--line); background:var(--surface-2); color:var(--muted);
+    display:flex; align-items:center; justify-content:center;
+  }
+
+  .reminder-check{
+    width:24px; height:24px; border-radius:50%; border:2px solid var(--steel-dim); flex-shrink:0;
+    display:flex; align-items:center; justify-content:center; margin-top:2px;
+  }
+  .reminder-check.done{background:var(--good); border-color:var(--good);}
+  .card.done .texto{text-decoration:line-through; color:var(--muted);}
+  .due{font-family:var(--font-mono); font-size:12px; margin-top:3px;}
+  .due.overdue{color:var(--down); font-weight:700;}
+  .due.ok{color:var(--muted);}
+
+  .empty{
+    text-align:center; padding:60px 20px; color:var(--muted);
+  }
+  .empty svg{opacity:.5; margin-bottom:10px;}
+  .empty p{font-size:14px; margin:0;}
+
+  /* BOTTOM NAV */
+  nav.tabbar{
+    position:fixed; bottom:0; left:0; right:0; z-index:30;
+    display:flex; justify-content:center;
+    padding-bottom:env(safe-area-inset-bottom);
+    background:linear-gradient(0deg, var(--bg) 60%, transparent);
+  }
+  .tabbar-inner{
+    max-width:640px; width:100%; display:flex;
+    background:var(--surface); border:1px solid var(--line); border-radius:18px;
+    margin:0 16px 12px; padding:6px; gap:4px;
+  }
+  .tab{
+    flex:1; display:flex; flex-direction:column; align-items:center; gap:3px;
+    padding:8px 4px 7px; border-radius:14px; color:var(--muted); font-size:11px; font-weight:600;
+  }
+  .tab.active{background:var(--surface-2); color:var(--steel);}
+  .tab svg{width:20px; height:20px;}
+
+  .fab{
+    position:fixed; right:20px; bottom:86px; z-index:31;
+    width:56px; height:56px; border-radius:50%;
+    background:var(--steel); color:#0c111a; border:none;
+    display:flex; align-items:center; justify-content:center;
+    box-shadow:0 8px 20px rgba(0,0,0,.4);
+  }
+  .fab:active{transform:scale(.94);}
+
+  /* MODAL */
+  .overlay{
+    position:fixed; inset:0; background:rgba(6,9,14,.72); z-index:50;
+    display:none; align-items:flex-end; justify-content:center;
+  }
+  .overlay.open{display:flex;}
+  .sheet{
+    width:100%; max-width:640px; max-height:88vh; overflow-y:auto;
+    background:var(--surface); border-radius:20px 20px 0 0; padding:18px 18px calc(24px + env(safe-area-inset-bottom));
+    animation:up .2s ease;
+  }
+  @keyframes up{from{transform:translateY(24px); opacity:0;} to{transform:translateY(0); opacity:1;}}
+  .sheet h2{margin:0 0 14px; font-size:17px;}
+  .sheet .handle{width:36px; height:4px; background:var(--line); border-radius:99px; margin:0 auto 14px;}
+  label{display:block; font-size:12px; font-weight:700; color:var(--muted); margin:14px 0 6px; text-transform:uppercase; letter-spacing:.05em;}
+  label:first-of-type{margin-top:0;}
+  input[type=text], input[type=date], textarea, select{
+    width:100%; background:var(--surface-2); border:1px solid var(--line); border-radius:10px;
+    padding:11px 12px; color:var(--text); font-family:var(--font-ui); font-size:14.5px; outline:none;
+  }
+  textarea{resize:vertical; min-height:70px;}
+  .seg{display:flex; gap:6px; flex-wrap:wrap;}
+  .seg button{
+    padding:8px 12px; border-radius:10px; border:1px solid var(--line); background:var(--surface-2); color:var(--muted); font-size:12.5px; font-weight:600;
+  }
+  .seg button.sel{background:var(--steel); color:#0c111a; border-color:var(--steel);}
+  .photo-row{display:flex; gap:10px; align-items:center; margin-top:8px;}
+  .photo-preview{width:64px; height:64px; border-radius:10px; object-fit:cover; border:1px solid var(--line); background:var(--surface-2);}
+  .btn-photo{
+    flex:1; padding:11px; border-radius:10px; border:1px dashed var(--line); background:transparent; color:var(--steel); font-size:13px; font-weight:600;
+  }
+  .sheet-actions{display:flex; gap:10px; margin-top:20px;}
+  .btn{flex:1; padding:13px; border-radius:12px; border:none; font-size:14.5px; font-weight:700;}
+  .btn-primary{background:var(--steel); color:#0c111a;}
+  .btn-ghost{background:var(--surface-2); color:var(--muted); border:1px solid var(--line);}
+  .btn-danger{background:#3a1f22; color:var(--down);}
+
+  .toast{
+    position:fixed; left:50%; bottom:150px; transform:translateX(-50%) translateY(10px);
+    background:var(--surface-2); border:1px solid var(--steel); color:var(--text);
+    padding:10px 16px; border-radius:99px; font-size:13px; font-weight:600;
+    display:flex; align-items:center; gap:8px; z-index:60; opacity:0; pointer-events:none;
+    transition:opacity .2s, transform .2s;
+  }
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+  .toast .dot{width:8px; height:8px; border-radius:50%; background:var(--good);}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <header>
+    <img class="logo" src="icons/icon-192.png" alt="Logo">
+    <div class="titles">
+      <h1 id="sectionTitle">Inventario</h1>
+      <div class="sub" id="sectionSub">—</div>
+    </div>
+    <button class="icon-btn" id="btnBackup" title="Copia de seguridad">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+    </button>
+  </header>
+
+  <div class="toolbar">
+    <div class="search">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input id="searchInput" type="text" placeholder="Buscar por marca, número o texto…">
+    </div>
+    <div class="chips" id="filterChips"></div>
+  </div>
+
+  <main>
+    <section class="section active" id="sec-inventario"></section>
+    <section class="section" id="sec-notas"></section>
+    <section class="section" id="sec-recordatorios"></section>
+  </main>
+
+  <button class="fab" id="fabAdd">
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+  </button>
+
+  <nav class="tabbar">
+    <div class="tabbar-inner">
+      <button class="tab active" data-tab="inventario">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+        Inventario
+      </button>
+      <button class="tab" data-tab="notas">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v12H8l-4 4V4z"/></svg>
+        Notas
+      </button>
+      <button class="tab" data-tab="recordatorios">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>
+        Recordatorios
+      </button>
+    </div>
+  </nav>
+
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="sheet" id="sheet"></div>
+</div>
+
+<div class="toast" id="toast"><span class="dot"></span><span id="toastMsg">Guardado</span></div>
+
+<input type="file" id="fileInput" accept="image/*" capture="environment" style="display:none">
+
+<script>
+/* ---------- Estado y almacenamiento ---------- */
+const STORAGE_KEY = 'inventarioTI_v1';
+const DEFAULT_CATS = ['Notebooks','Netbooks (Sarmiento)','Cargadores','Cables de red','Adaptadores WiFi USB','Otros'];
+
+function loadData(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(raw) return JSON.parse(raw);
+  }catch(e){ console.warn('Error leyendo almacenamiento', e); }
+  return { items: [], notas: [], recordatorios: [], categorias: DEFAULT_CATS.slice() };
+}
+let data = loadData();
+if(!data.categorias || !data.categorias.length) data.categorias = DEFAULT_CATS.slice();
+
+function save(){
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
+
+function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+
+function showToast(msg){
+  const t = document.getElementById('toast');
+  document.getElementById('toastMsg').textContent = msg;
+  t.classList.add('show');
+  clearTimeout(showToast._t);
+  showToast._t = setTimeout(()=> t.classList.remove('show'), 1700);
+}
+
+/* ---------- Navegación de tabs ---------- */
+let currentTab = 'inventario';
+let activeFilter = 'Todos';
+let searchTerm = '';
+
+const TITLES = {
+  inventario: ['Inventario', 'Notebooks, cargadores, cables y más'],
+  notas: ['Notas', 'Fallas, reparaciones y pedidos'],
+  recordatorios: ['Recordatorios', 'Pendientes del día a día']
+};
+
+document.querySelectorAll('.tab').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    currentTab = btn.dataset.tab;
+    activeFilter = 'Todos';
+    document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+    document.getElementById('sec-'+currentTab).classList.add('active');
+    document.getElementById('sectionTitle').textContent = TITLES[currentTab][0];
+    document.getElementById('sectionSub').textContent = TITLES[currentTab][1];
+    renderChips();
+    renderCurrent();
+  });
+});
+
+document.getElementById('searchInput').addEventListener('input', (e)=>{
+  searchTerm = e.target.value.trim().toLowerCase();
+  renderCurrent();
+});
+
+/* ---------- Chips de filtro ---------- */
+function renderChips(){
+  const wrap = document.getElementById('filterChips');
+  wrap.innerHTML = '';
+  let opts = [];
+  if(currentTab === 'inventario') opts = ['Todos', ...data.categorias.slice().sort((a,b)=> categoryRank(a)-categoryRank(b) || a.localeCompare(b,'es'))];
+  else if(currentTab === 'notas') opts = ['Todos','Falla','Reparar','Repuesto','General'];
+  else opts = ['Todos','Pendientes','Hechos'];
+
+  opts.forEach(opt=>{
+    const chip = document.createElement('button');
+    chip.className = 'chip' + (activeFilter===opt ? ' active':'');
+    chip.textContent = opt;
+    chip.addEventListener('click', ()=>{ activeFilter = opt; renderChips(); renderCurrent(); });
+    wrap.appendChild(chip);
+  });
+}
+
+/* ---------- Render principal ---------- */
+function renderCurrent(){
+  if(currentTab==='inventario') renderInventario();
+  else if(currentTab==='notas') renderNotas();
+  else renderRecordatorios();
+}
+
+function emptyState(msg){
+  return `<div class="empty">
+    <svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+    <p>${msg}</p>
+  </div>`;
+}
+
+function statusClass(estado){
+  if(estado==='Bueno') return 'good';
+  if(estado==='En reparación') return 'repair';
+  return 'down';
+}
+function statusInitial(estado){
+  if(estado==='Bueno') return '✓';
+  if(estado==='En reparación') return '⟳';
+  return '×';
+}
+
+function renderInventario(){
+  const sec = document.getElementById('sec-inventario');
+  let items = data.items.slice();
+  if(activeFilter !== 'Todos') items = items.filter(i=>i.categoria===activeFilter);
+  if(searchTerm){
+    items = items.filter(i =>
+      (i.marca||'').toLowerCase().includes(searchTerm) ||
+      (i.numero||'').toLowerCase().includes(searchTerm) ||
+      (i.nota||'').toLowerCase().includes(searchTerm) ||
+      (i.ubicacion||'').toLowerCase().includes(searchTerm)
+    );
+  }
+  if(!items.length){ sec.innerHTML = emptyState('No hay equipos cargados todavía. Tocá + para agregar el primero.'); return; }
+
+  // agrupar por categoria
+  const groups = {};
+  items.forEach(i=>{ (groups[i.categoria] = groups[i.categoria]||[]).push(i); });
+
+  let html = '';
+  Object.keys(groups)
+    .sort((a,b)=> categoryRank(a)-categoryRank(b) || a.localeCompare(b,'es'))
+    .forEach(cat=>{
+      html += `<div class="group-label"><span class="cat-icon">${categoryIcon(cat)}</span>${cat} · ${groups[cat].length}</div>`;
+      groups[cat].sort((a,b)=> (a.numero||'').localeCompare(b.numero||'', 'es', {numeric:true}));
+      groups[cat].forEach(i=>{
+        html += `<div class="card">
+          <div class="ring ${statusClass(i.estado)}" title="${esc(i.estado)}">${categoryIcon(i.categoria)}</div>
+          <div class="body">
+            <div class="row1"><span class="marca">${esc(i.marca||'Sin marca')}</span><span class="numero">${i.numero? '#'+esc(i.numero):''}</span></div>
+            <div class="meta">${esc(i.estado)}${i.ubicacion? ' · '+esc(i.ubicacion):''}</div>
+            ${i.nota ? `<div class="nota-txt">${esc(i.nota)}</div>`:''}
+            ${i.foto ? `<img class="thumb" src="${i.foto}">`:''}
+          </div>
+          <div class="actions">
+            <button onclick="editItem('${i.id}')">${editIcon}</button>
+            <button onclick="deleteItem('${i.id}')">${trashIcon}</button>
+          </div>
+        </div>`;
+      });
+    });
+  sec.innerHTML = html;
+}
+
+function renderNotas(){
+  const sec = document.getElementById('sec-notas');
+  let list = data.notas.slice().sort((a,b)=> b.fecha.localeCompare(a.fecha));
+  if(activeFilter !== 'Todos') list = list.filter(n => tipoLabel(n.tipo) === activeFilter);
+  if(searchTerm) list = list.filter(n => (n.texto||'').toLowerCase().includes(searchTerm));
+  if(!list.length){ sec.innerHTML = emptyState('Todavía no hay notas. Tocá + para anotar una falla, reparación o pedido.'); return; }
+
+  let html = '';
+  list.forEach(n=>{
+    html += `<div class="card">
+      <div class="ring ${n.tipo==='falla'?'down':n.tipo==='reparar'?'repair':n.tipo==='repuesto'?'':''}">${notaIcon}</div>
+      <div class="body">
+        <div class="row1"><span class="marca">${fechaCorta(n.fecha)}</span></div>
+        <div class="nota-txt">${esc(n.texto)}</div>
+        <div class="tags"><span class="tag ${n.tipo}">${tipoLabel(n.tipo)}</span></div>
+        ${n.foto ? `<img class="thumb" src="${n.foto}">`:''}
+      </div>
+      <div class="actions">
+        <button onclick="editNota('${n.id}')">${editIcon}</button>
+        <button onclick="deleteNota('${n.id}')">${trashIcon}</button>
+      </div>
+    </div>`;
+  });
+  sec.innerHTML = html;
+}
+
+function renderRecordatorios(){
+  const sec = document.getElementById('sec-recordatorios');
+  let list = data.recordatorios.slice().sort((a,b)=>{
+    if(!!a.completado !== !!b.completado) return a.completado ? 1 : -1;
+    return (a.fechaLimite||'9999').localeCompare(b.fechaLimite||'9999');
+  });
+  if(activeFilter==='Pendientes') list = list.filter(r=>!r.completado);
+  if(activeFilter==='Hechos') list = list.filter(r=>r.completado);
+  if(searchTerm) list = list.filter(r=>(r.texto||'').toLowerCase().includes(searchTerm));
+  if(!list.length){ sec.innerHTML = emptyState('No hay recordatorios. Tocá + para agregar uno.'); return; }
+
+  const today = new Date().toISOString().slice(0,10);
+  let html = '';
+  list.forEach(r=>{
+    const overdue = r.fechaLimite && r.fechaLimite < today && !r.completado;
+    html += `<div class="card ${r.completado?'done':''}">
+      <div class="reminder-check ${r.completado?'done':''}" onclick="toggleRecordatorio('${r.id}')">${r.completado? checkIcon:''}</div>
+      <div class="body">
+        <div class="texto">${esc(r.texto)}</div>
+        ${r.fechaLimite ? `<div class="due ${overdue?'overdue':'ok'}">${overdue?'Vencido · ':''}${fechaCorta(r.fechaLimite)}</div>`:''}
+      </div>
+      <div class="actions">
+        <button onclick="editRecordatorio('${r.id}')">${editIcon}</button>
+        <button onclick="deleteRecordatorio('${r.id}')">${trashIcon}</button>
+      </div>
+    </div>`;
+  });
+  sec.innerHTML = html;
+}
+
+function tipoLabel(t){ return {falla:'Falla', reparar:'Reparar', repuesto:'Repuesto', general:'General'}[t] || 'General'; }
+function fechaCorta(iso){
+  if(!iso) return '';
+  const d = new Date(iso.length===10 ? iso+'T00:00:00' : iso);
+  return d.toLocaleDateString('es-AR', {day:'2-digit', month:'short', year: d.getFullYear()!==new Date().getFullYear() ? 'numeric':undefined});
+}
+function esc(s){
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+const editIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>`;
+const trashIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>`;
+const checkIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0c111a" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>`;
+const notaIcon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v12H8l-4 4V4z"/></svg>`;
+
+/* ---- Íconos por tipo de equipo ---- */
+const ICON_NOTEBOOK = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M1 20h22l-1.5-3.5a1 1 0 0 0-.9-.5H3.4a1 1 0 0 0-.9.5L1 20z"/></svg>`;
+const ICON_NETBOOK = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="5" width="12" height="9" rx="1.3"/><path d="M3 19h18l-1.2-2.8a1 1 0 0 0-.9-.6H5.1a1 1 0 0 0-.9.6L3 19z"/></svg>`;
+const ICON_CARGADOR = `<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>`;
+const ICON_RED = `<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20.01" x2="12" y2="20"/></svg>`;
+const ICON_OTROS = `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="2" width="8" height="15" rx="4"/><line x1="12" y1="2" x2="12" y2="8"/></svg>`;
+
+function categoryIcon(cat){
+  const c = (cat||'').toLowerCase();
+  if(c.includes('netbook')) return ICON_NETBOOK;
+  if(c.includes('notebook')) return ICON_NOTEBOOK;
+  if(c.includes('carga')) return ICON_CARGADOR;
+  if(c.includes('red') || c.includes('cable') || c.includes('wifi')) return ICON_RED;
+  return ICON_OTROS;
+}
+function categoryRank(cat){
+  const c = (cat||'').toLowerCase();
+  if(c.includes('notebook') && !c.includes('netbook')) return 0;
+  if(c.includes('netbook')) return 1;
+  if(c.includes('carga')) return 2;
+  if(c.includes('red') || c.includes('cable') || c.includes('wifi')) return 3;
+  return 4;
+}
+
+/* ---------- Modal genérico ---------- */
+const overlay = document.getElementById('overlay');
+const sheet = document.getElementById('sheet');
+function openSheet(html){
+  sheet.innerHTML = `<div class="handle"></div>` + html;
+  overlay.classList.add('open');
+}
+function closeSheet(){ overlay.classList.remove('open'); }
+overlay.addEventListener('click', (e)=>{ if(e.target===overlay) closeSheet(); });
+
+document.getElementById('fabAdd').addEventListener('click', ()=>{
+  if(currentTab==='inventario') openItemForm();
+  else if(currentTab==='notas') openNotaForm();
+  else openRecordatorioForm();
+});
+
+/* ---- foto helper: comprime a base64 ---- */
+let pendingPhotoTarget = null;
+document.getElementById('fileInput').addEventListener('change', (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev)=>{
+    const img = new Image();
+    img.onload = ()=>{
+      const maxW = 900;
+      const scale = Math.min(1, maxW/img.width);
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width*scale;
+      canvas.height = img.height*scale;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img,0,0,canvas.width,canvas.height);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.72);
+      if(pendingPhotoTarget) pendingPhotoTarget(dataUrl);
+    };
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+  e.target.value = '';
+});
+function pickPhoto(cb){
+  pendingPhotoTarget = cb;
+  document.getElementById('fileInput').click();
+}
+
+/* ---------- Formulario: Item de inventario ---------- */
+function openItemForm(id){
+  const item = id ? data.items.find(i=>i.id===id) : null;
+  let foto = item ? item.foto : null;
+  const catOptions = data.categorias.map(c=>`<option value="${esc(c)}" ${item&&item.categoria===c?'selected':''}>${esc(c)}</option>`).join('');
+  openSheet(`
+    <h2>${item?'Editar equipo':'Nuevo equipo'}</h2>
+    <label>Categoría</label>
+    <select id="f-categoria">${catOptions}</select>
+    <label>Marca</label>
+    <input type="text" id="f-marca" placeholder="Ej: HP, Dell, Bangho…" value="${item?esc(item.marca||''):''}">
+    <label>Número / identificador</label>
+    <input type="text" id="f-numero" placeholder="Ej: 5, 13, 1…" value="${item?esc(item.numero||''):''}">
+    <label>Ubicación (opcional)</label>
+    <input type="text" id="f-ubicacion" placeholder="Ej: Dirección, Psicología…" value="${item?esc(item.ubicacion||''):''}">
+    <label>Estado</label>
+    <div class="seg" id="f-estado">
+      ${['Bueno','En reparación','De baja'].map(e=>`<button type="button" data-v="${e}" class="${item&&item.estado===e || (!item && e==='Bueno') ?'sel':''}">${e}</button>`).join('')}
+    </div>
+    <label>Nota</label>
+    <textarea id="f-nota" placeholder="Detalles, falla, repuesto necesario…">${item?esc(item.nota||''):''}</textarea>
+    <label>Foto (testigo)</label>
+    <div class="photo-row">
+      <img class="photo-preview" id="f-foto-preview" src="${foto||''}" style="${foto?'':'display:none'}">
+      <button type="button" class="btn-photo" id="f-foto-btn">${foto? 'Cambiar foto':'Agregar foto'}</button>
+    </div>
+    <div class="sheet-actions">
+      ${item?'<button class="btn btn-danger" id="f-del">Eliminar</button>':''}
+      <button class="btn btn-ghost" id="f-cancel">Cancelar</button>
+      <button class="btn btn-primary" id="f-save">Guardar</button>
+    </div>
+  `);
+  segSelect('#f-estado');
+  document.getElementById('f-foto-btn').addEventListener('click', ()=>{
+    pickPhoto((dataUrl)=>{
+      foto = dataUrl;
+      const prev = document.getElementById('f-foto-preview');
+      prev.src = dataUrl; prev.style.display='block';
+      document.getElementById('f-foto-btn').textContent = 'Cambiar foto';
+    });
+  });
+  document.getElementById('f-cancel').addEventListener('click', closeSheet);
+  if(item) document.getElementById('f-del').addEventListener('click', ()=>{ deleteItem(item.id, true); });
+  document.getElementById('f-save').addEventListener('click', ()=>{
+    const estadoBtn = document.querySelector('#f-estado button.sel');
+    const obj = {
+      id: item? item.id : uid(),
+      categoria: document.getElementById('f-categoria').value,
+      marca: document.getElementById('f-marca').value.trim(),
+      numero: document.getElementById('f-numero').value.trim(),
+      ubicacion: document.getElementById('f-ubicacion').value.trim(),
+      estado: estadoBtn ? estadoBtn.dataset.v : 'Bueno',
+      nota: document.getElementById('f-nota').value.trim(),
+      foto: foto,
+      fecha: item ? item.fecha : new Date().toISOString()
+    };
+    if(!obj.marca && !obj.numero){ showToast('Cargá al menos marca o número'); return; }
+    if(item){ const idx = data.items.findIndex(i=>i.id===item.id); data.items[idx]=obj; }
+    else data.items.push(obj);
+    save(); closeSheet(); renderCurrent(); showToast('Equipo guardado');
+  });
+}
+function editItem(id){ openItemForm(id); }
+function deleteItem(id, fromForm){
+  data.items = data.items.filter(i=>i.id!==id);
+  save();
+  if(fromForm) closeSheet();
+  renderCurrent();
+  showToast('Equipo eliminado');
+}
+
+function segSelect(containerSel){
+  document.querySelectorAll(containerSel+' button').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      document.querySelectorAll(containerSel+' button').forEach(x=>x.classList.remove('sel'));
+      b.classList.add('sel');
+    });
+  });
+}
+
+/* ---------- Formulario: Nota ---------- */
+function openNotaForm(id){
+  const nota = id ? data.notas.find(n=>n.id===id) : null;
+  let foto = nota ? nota.foto : null;
+  openSheet(`
+    <h2>${nota?'Editar nota':'Nueva nota'}</h2>
+    <label>Tipo</label>
+    <div class="seg" id="f-tipo">
+      ${[['falla','Falla'],['reparar','Reparar'],['repuesto','Repuesto'],['general','General']].map(([v,l])=>`<button type="button" data-v="${v}" class="${nota&&nota.tipo===v || (!nota&&v==='general')?'sel':''}">${l}</button>`).join('')}
+    </div>
+    <label>Nota</label>
+    <textarea id="f-texto" placeholder="¿Qué pasó? ¿Qué falta?">${nota?esc(nota.texto||''):''}</textarea>
+    <label>Foto (testigo)</label>
+    <div class="photo-row">
+      <img class="photo-preview" id="f-foto-preview" src="${foto||''}" style="${foto?'':'display:none'}">
+      <button type="button" class="btn-photo" id="f-foto-btn">${foto? 'Cambiar foto':'Agregar foto'}</button>
+    </div>
+    <div class="sheet-actions">
+      ${nota?'<button class="btn btn-danger" id="f-del">Eliminar</button>':''}
+      <button class="btn btn-ghost" id="f-cancel">Cancelar</button>
+      <button class="btn btn-primary" id="f-save">Guardar</button>
+    </div>
+  `);
+  segSelect('#f-tipo');
+  document.getElementById('f-foto-btn').addEventListener('click', ()=>{
+    pickPhoto((dataUrl)=>{
+      foto = dataUrl;
+      const prev = document.getElementById('f-foto-preview');
+      prev.src = dataUrl; prev.style.display='block';
+      document.getElementById('f-foto-btn').textContent = 'Cambiar foto';
+    });
+  });
+  document.getElementById('f-cancel').addEventListener('click', closeSheet);
+  if(nota) document.getElementById('f-del').addEventListener('click', ()=>{ deleteNota(nota.id, true); });
+  document.getElementById('f-save').addEventListener('click', ()=>{
+    const texto = document.getElementById('f-texto').value.trim();
+    if(!texto){ showToast('Escribí una nota'); return; }
+    const tipoBtn = document.querySelector('#f-tipo button.sel');
+    const obj = {
+      id: nota? nota.id: uid(),
+      tipo: tipoBtn? tipoBtn.dataset.v : 'general',
+      texto, foto,
+      fecha: nota ? nota.fecha : new Date().toISOString()
+    };
+    if(nota){ const idx = data.notas.findIndex(n=>n.id===nota.id); data.notas[idx]=obj; }
+    else data.notas.push(obj);
+    save(); closeSheet(); renderCurrent(); showToast('Nota guardada');
+  });
+}
+function editNota(id){ openNotaForm(id); }
+function deleteNota(id, fromForm){
+  data.notas = data.notas.filter(n=>n.id!==id);
+  save();
+  if(fromForm) closeSheet();
+  renderCurrent();
+  showToast('Nota eliminada');
+}
+
+/* ---------- Formulario: Recordatorio ---------- */
+function openRecordatorioForm(id){
+  const r = id ? data.recordatorios.find(x=>x.id===id) : null;
+  openSheet(`
+    <h2>${r?'Editar recordatorio':'Nuevo recordatorio'}</h2>
+    <label>Texto</label>
+    <textarea id="f-texto" placeholder="¿Qué hay que hacer?">${r?esc(r.texto||''):''}</textarea>
+    <label>Fecha límite (opcional)</label>
+    <input type="date" id="f-fecha" value="${r?r.fechaLimite||'':''}">
+    <div class="sheet-actions">
+      ${r?'<button class="btn btn-danger" id="f-del">Eliminar</button>':''}
+      <button class="btn btn-ghost" id="f-cancel">Cancelar</button>
+      <button class="btn btn-primary" id="f-save">Guardar</button>
+    </div>
+  `);
+  document.getElementById('f-cancel').addEventListener('click', closeSheet);
+  if(r) document.getElementById('f-del').addEventListener('click', ()=>{ deleteRecordatorio(r.id, true); });
+  document.getElementById('f-save').addEventListener('click', ()=>{
+    const texto = document.getElementById('f-texto').value.trim();
+    if(!texto){ showToast('Escribí un texto'); return; }
+    const obj = {
+      id: r? r.id: uid(),
+      texto,
+      fechaLimite: document.getElementById('f-fecha').value || null,
+      completado: r? r.completado : false,
+      fecha: r? r.fecha : new Date().toISOString()
+    };
+    if(r){ const idx = data.recordatorios.findIndex(x=>x.id===r.id); data.recordatorios[idx]=obj; }
+    else data.recordatorios.push(obj);
+    save(); closeSheet(); renderCurrent(); showToast('Recordatorio guardado');
+  });
+}
+function editRecordatorio(id){ openRecordatorioForm(id); }
+function deleteRecordatorio(id, fromForm){
+  data.recordatorios = data.recordatorios.filter(r=>r.id!==id);
+  save();
+  if(fromForm) closeSheet();
+  renderCurrent();
+  showToast('Recordatorio eliminado');
+}
+function toggleRecordatorio(id){
+  const r = data.recordatorios.find(x=>x.id===id);
+  r.completado = !r.completado;
+  save(); renderCurrent();
+  showToast(r.completado ? 'Marcado como hecho' : 'Marcado como pendiente');
+}
+
+/* ---------- Backup / Restore ---------- */
+document.getElementById('btnBackup').addEventListener('click', ()=>{
+  openSheet(`
+    <h2>Copia de seguridad</h2>
+    <p style="color:var(--muted); font-size:13px; line-height:1.5; margin-top:0;">
+      Los datos se guardan solo en este celular. Exportá un archivo de respaldo de vez en cuando para no perder la información.
+    </p>
+    <div class="sheet-actions">
+      <button class="btn btn-ghost" id="f-cancel">Cerrar</button>
+      <button class="btn btn-primary" id="f-export">Exportar copia</button>
+    </div>
+    <label style="margin-top:22px;">Restaurar desde archivo</label>
+    <input type="file" id="f-import" accept="application/json">
+  `);
+  document.getElementById('f-cancel').addEventListener('click', closeSheet);
+  document.getElementById('f-export').addEventListener('click', ()=>{
+    const blob = new Blob([JSON.stringify(data,null,2)], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const stamp = new Date().toISOString().slice(0,10);
+    a.href = url; a.download = `inventario-ti-backup-${stamp}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('Copia exportada');
+  });
+  document.getElementById('f-import').addEventListener('change', (e)=>{
+    const file = e.target.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev)=>{
+      try{
+        const parsed = JSON.parse(ev.target.result);
+        if(!parsed.items || !parsed.notas || !parsed.recordatorios){ showToast('Archivo inválido'); return; }
+        data = parsed;
+        if(!data.categorias || !data.categorias.length) data.categorias = DEFAULT_CATS.slice();
+        save(); closeSheet(); renderChips(); renderCurrent();
+        showToast('Datos restaurados');
+      }catch(err){ showToast('No se pudo leer el archivo'); }
+    };
+    reader.readAsText(file);
+  });
+});
+
+/* ---------- Registro del service worker ---------- */
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('sw.js').catch(()=>{});
+  });
+}
+
+/* ---------- Inicio ---------- */
+renderChips();
+renderCurrent();
+</script>
+</body>
+</html>
