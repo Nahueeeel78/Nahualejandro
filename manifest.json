@@ -1,6 +1,6 @@
 {
-  "name": "Inventario TI Escuela",
-  "short_name": "Inventario TI",
+  "name": "Técnico Nahualejandro",
+  "short_name": "Téc. Nahualejandro",
   "description": "Gestión de inventario, notas y recordatorios para el área de computación e informática de la escuela. Desarrollado por Nahualejandro.",
   "start_url": "./index.html",
   "scope": "./",
