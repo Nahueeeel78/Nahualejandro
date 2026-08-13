@@ -229,9 +229,39 @@
     border-top:1px solid var(--line);
     font-size:11.5px; color:var(--muted); letter-spacing:.02em;
   }
+
+  /* SPLASH */
+  #splash{
+    position:fixed; inset:0; z-index:100;
+    background:var(--bg);
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    transition:opacity .45s ease;
+  }
+  #splash img{
+    width:112px; height:112px; border-radius:50%;
+    border:3px solid var(--steel-dim);
+    box-shadow:0 0 0 8px rgba(143,165,192,.06);
+    animation:splashPulse 1.6s ease-in-out infinite;
+  }
+  #splash .app-name{
+    margin-top:18px; font-weight:700; font-size:16px; letter-spacing:.02em; color:var(--text);
+  }
+  #splash .app-credit{
+    margin-top:4px; font-size:11.5px; color:var(--muted);
+  }
+  #splash.hide{opacity:0; pointer-events:none;}
+  @keyframes splashPulse{
+    0%,100%{ transform:scale(1); }
+    50%{ transform:scale(1.04); }
+  }
 </style>
 </head>
 <body>
+<div id="splash">
+  <img src="icons/icon-512.png" alt="Logo">
+  <div class="app-name">Inventario TI</div>
+  <div class="app-credit">Nahualejandro</div>
+</div>
 <div id="app">
 
   <header>
@@ -815,6 +845,15 @@ if('serviceWorker' in navigator){
 /* ---------- Inicio ---------- */
 renderChips();
 renderCurrent();
+
+/* ---------- Splash de bienvenida ---------- */
+setTimeout(()=>{
+  const s = document.getElementById('splash');
+  if(s){
+    s.classList.add('hide');
+    setTimeout(()=> s.remove(), 500);
+  }
+}, 750);
 </script>
 </body>
 </html>
